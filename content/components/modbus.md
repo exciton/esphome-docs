@@ -43,7 +43,7 @@ modbus:
 
 - **flow_control_pin** (*Optional*, [Pin](#config-pin)): The pin used to switch flow control.
   This is useful for RS485 transceivers that do not have automatic flow control switching,
-  like the common MAX485. If your UART support `flow_control_pin` you should preferentially set it the `uart` component over the `mobus` component.
+  like the common MAX485. If your UART support `flow_control_pin` you should preferentially set it in the `uart` component over the `mobus` component.
 
 - **send_wait_time** (*Optional*, [Time](#config-time)): Time in milliseconds before the next ModBUS command is sent when an answer from a previous command has not yet started (i.e. when to timeout and assume no response is coming). Defaults to 250 ms.
   Set this value to the maximum time required for the slowest device on the bus to begin responding (time to first byte).
