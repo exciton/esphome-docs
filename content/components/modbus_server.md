@@ -25,24 +25,22 @@ The transceiver connects to the UART of the MCU. For ESP32, pin `16` to `TXD` an
 
 On the bus side, you need 120 Ohm termination resistors at the ends of the bus cable as per Modbus standard. Some transceivers have this already soldered onboard, while some slave devices may have them available via a jumper or a DIP switch.
 
-{{< note >}}
-If you are using an ESP8266, serial logging may cause problems reading from UART. For best results, hardware serial is recommended. Software serial may not be able to read all received data if other components spend a lot of time in the `loop()`.
-
-For hardware serial only a limited set of pins can be used. Either `tx_pin: GPIO1` and `rx_pin: GPIO3`  or `tx_pin: GPIO15` and `rx_pin: GPIO13`.
-
-The disadvantage of using the hardware UART is that you can't use serial logging because the serial logs would be sent to the Modbus device(s) instead, causing errors.
-
-Serial logging can be disabled by setting `baud_rate: 0`.
-
-See {{< docref "logger/" >}} for more details
-
-```yaml
-logger:
-    level: <level>
-    baud_rate: 0
-```
-
-{{< /note >}}
+> [!NOTE]
+> If you are using an ESP8266, serial logging may cause problems reading from UART. For best results, hardware serial is recommended. Software serial may not be able to read all received data if other components spend a lot of time in the `loop()`.
+>
+> For hardware serial only a limited set of pins can be used. Either `tx_pin: GPIO1` and `rx_pin: GPIO3`  or `tx_pin: GPIO15` and `rx_pin: GPIO13`.
+>
+> The disadvantage of using the hardware UART is that you can't use serial logging because the serial logs would be sent to the Modbus device(s) instead, causing errors.
+>
+> Serial logging can be disabled by setting `baud_rate: 0`.
+>
+> See {{< docref "logger/" >}} for more details
+>
+> ```yaml
+> logger:
+>     level: <level>
+>     baud_rate: 0
+> ```
 
 ## Configuration variables
 
@@ -116,7 +114,6 @@ sensor:
   - platform: uptime
     id: uptime_sens
 ```
-
 
 ## See Also
 
