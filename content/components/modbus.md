@@ -49,7 +49,7 @@ modbus:
   Set this value to the maximum time required for the slowest device on the bus to begin responding (time to first byte).
   If a device starts responding within this time, the next command will be queued and sent after the response is finished, no matter how long the response.
 
-- **turnaround_time** (*Optional*, [Time](#config-time)): Time in milliseconds before the next ModBUS command is sent after last response is received (i.e. how long to allow all devices to process messages on the bus). Defaults to 600 ms.
+- **turnaround_time** (*Optional*, [Time](/guides/configuration-types#time)): Time in milliseconds before the next ModBUS command is sent after last response is received (i.e. how long to allow all devices to process messages on the bus). Defaults to 600 ms.
   Set this value to the maximum time required for the slowest device on the bus to process a message and be ready to process another. Note that all devices hear all messages, so will need to process them even if they don't need to reply.
   If devices don't respond sometimes, it can help to increase this value.
 

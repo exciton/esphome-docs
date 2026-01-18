@@ -44,9 +44,9 @@ On the bus side, you need 120 Ohm termination resistors at the ends of the bus c
 
 ## Configuration variables
 
-- **modbus_id** (*Optional*, [ID](#config-id)): Manually specify the ID of the `modbus` hub.
+- **modbus_id** (*Optional*, [ID](/guides/configuration-types#id)): Manually specify the ID of the `modbus` hub.
 
-- **address** (**Required**, [ID](#config-id)): The Modbus address of the server device.
+- **address** (**Required**): The Modbus address of the server device.
 
 - **server_courtesy_response** (*Optional*): Configuration block to enable the courtesy response feature when the device is acting as a Modbus server.
 
