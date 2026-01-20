@@ -58,8 +58,8 @@ modbus:
 ## See Also
 
 - {{< docref "/components/modbus_controller" >}}
+- {{< docref "/components/modbus_server" >}}
 - {{< docref "/components/sensor/modbus_controller" >}}
-- {{< docref "/components/sensor/modbus_server" >}}
 - {{< docref "/components/binary_sensor/modbus_controller" >}}
 - {{< docref "/components/output/modbus_controller" >}}
 - {{< docref "/components/switch/modbus_controller" >}}

@@ -118,6 +118,7 @@ sensor:
 ## See Also
 
 - {{< docref "/components/modbus" >}}
+- {{< docref "/components/modbus_controller" >}}
 - {{< docref "/components/sensor/modbus_controller" >}}
 - {{< docref "/components/binary_sensor/modbus_controller" >}}
 - {{< docref "/components/output/modbus_controller" >}}
