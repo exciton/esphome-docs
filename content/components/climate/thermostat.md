@@ -161,8 +161,8 @@ Got all that? Great. Let's take a closer look at some configuration.
 The thermostat controller uses the sensor to determine whether it should heat or cool.
 
 - **sensor** (**Required**, [ID](/guides/configuration-types#id)): The sensor that is used to measure the current temperature.
-- **humidity_sensor** (*Optional*, [ID](/guides/configuration-types#id)): If specified, this sensor is used to measure the current humidity.
-  This is used for information only and does not influence temperature control.
+- **humidity_sensor** (*Optional*, [ID](/guides/configuration-types#id)): If specified, this sensor is used to measure
+  the current humidity. This may be used for humidity control; see [Humidity Control Actions](#humidity-control-actions).
 
 ### Heating and Cooling Actions
 
@@ -230,8 +230,10 @@ indication of the current climate mode.
   its fan either immediately or, when `fan_only_cooling` is `true`, as needed based on the upper
   target temperature value).
 
-- **heat_cool_mode** (*Optional*, [Action](/automations/actions#all-actions)): The action to call when
-  the climate device is placed into "heat/cool" mode (it may both cool and heat as required).
+- **heat_cool_mode** (*Optional*, [Action](/automations/actions#all-actions) or boolean): The action to call when
+  the climate device is placed into "heat/cool" mode (it may both cool and heat as required). If no action is desired,
+  may be set to `true` to enable the mode without a related automation. Note that **both** `heat_action` **and**
+  `cool_action` ([see above](#heating-and-cooling-actions)) must be defined to enable this mode.
 
 - **auto_mode** (*Optional*, [Action](/automations/actions#all-actions)): The action to call when
   the climate device is placed into "auto" mode (it may both cool and heat as required). This mode is
@@ -295,6 +297,20 @@ These should be used to control the fan only, if available.
 
 - **swing_both_action** (*Optional*, [Action](/automations/actions#all-actions)): The action to call when the fan
   should oscillate in horizontal and vertical directions.
+
+### Humidity Control Actions
+
+These are triggered when the humidity control action is changed by the thermostat controller. It can trigger actions
+to activate humidification **or** dehumidification.
+
+- **humidity_control_dehumidify_action** (*Optional*, [Action](/automations/actions#config-action)): The action to call when
+  dehumidification is required.
+
+- **humidity_control_humidify_action** (*Optional*, [Action](/automations/actions#config-action)): The action to call when
+  humidification is required.
+
+- **humidity_control_off_action** (*Optional*, [Action](/automations/actions#config-action)): The action to call when
+  (de)humidification should stop. This action is **required** when either of the above actions are configured.
 
 ## Advanced Configuration/Behavior
 
@@ -467,8 +483,11 @@ climate:
 
 ### Additional Actions/Behavior
 
-- **target_temperature_change_action** (*Optional*, [Action](/automations/actions#all-actions)): The action to call when the
-  thermostat's target temperature(s) is/are changed.
+- **target_humidity_change_action** (*Optional*, [Action](/automations/actions#all-actions)): The action to call when
+  the thermostat's target humidity is changed.
+
+- **target_temperature_change_action** (*Optional*, [Action](/automations/actions#all-actions)): The action to call when
+  the thermostat's target temperature(s) is/are changed.
 
 - **startup_delay** (*Optional*, boolean): If set to `true`, when ESPHome starts, `min_cooling_off_time`,
   `min_fanning_off_time`, and `min_heating_off_time` must elapse before each respective action may be invoked.
@@ -543,6 +562,9 @@ the range of allowed temperature values in the thermostat component. See {{< doc
 
 - **heat_overrun** (*Optional*, float): The minimum temperature differential (heating beyond the set point)
   before calling the idle [action](/automations/actions#all-actions). Defaults to 0.5 °C.
+
+- **humidity_hysteresis** (*Optional*, float): The maximum humidity differential (above/below the set point)
+  before calling the respective humidity control [action](/automations/actions#config-action). Defaults to 1%.
 
 > [!NOTE]
 >
