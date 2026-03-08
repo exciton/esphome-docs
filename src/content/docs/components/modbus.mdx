@@ -52,7 +52,7 @@ modbus:
   This value is ideally set to the maximum time required for the slowest device on the bus to process a message and be ready to process another. Note that all devices will receive all messages and will require time to process them even if they don't need to reply.
   If devices don't respond sometimes, it can help to increase this value.
 
-- **disable_crc** (*Optional*, boolean): If set to `true`, invalid CRC values are ignored . This will reduce error messages but will not fix communication issues. Try increasing times above first if you see CRC errors. Defaults to `false`.
+- **disable_crc** (*Optional*, boolean): If set to `true`, invalid CRC values are ignored. This will reduce error messages but will not fix communication issues. Try increasing times above first if you see CRC errors. Defaults to `false`.
 
 - **role** (*Optional*, string): The role of this component, `client` or `server`. Defaults to `client`.
 
