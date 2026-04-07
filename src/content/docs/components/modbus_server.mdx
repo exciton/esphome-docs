@@ -7,6 +7,8 @@ params:
     image: modbus.png
 ---
 
+import { Image } from 'astro:assets';
+
 The `modbus_server` component creates a RS485 connection to let your ESPHome node act as a Modbus server, allowing a ModBUS client to read data (like sensor values) from your ESPHome node.
 
 You must set the `role` attribute of the [Modbus](/components/modbus/) to `server`.
