@@ -50,7 +50,7 @@ On the bus side, you need 120 Ohm termination resistors at the ends of the bus c
 
 - **address** (**Required**, integer): The Modbus address of the server device.
 
-- **server_courtesy_response** (*Optional*): Configuration block to enable the courtesy response feature when the device is acting as a Modbus server.
+- **courtesy_response** (*Optional*): Configuration block to enable the courtesy response feature when the device is acting as a Modbus server.
 
   - **enabled** (*Optional*, boolean): Whether to enable the courtesy response feature.
     Defaults to `false`.
@@ -60,7 +60,7 @@ On the bus side, you need 120 Ohm termination resistors at the ends of the bus c
   - **register_value** (*Optional*, integer): The 16-bit value (range: 0–65535) to return for undefined registers within the address range defined by `register_last_address`.
     Defaults to `0`.
 
-- **server_registers** (*Optional*): A list of registers that are responded to when acting as a server.
+- **registers** (*Optional*): A list of registers that are responded to when acting as a server.
 
   - **address** (**Required**, integer): start address of the first register in a range
   - **value_type** (*Optional*): datatype of the mod_bus register data. The default data type for ModBUS is a 16 bit integer in **big endian** format (network byte order, MSB first)
@@ -106,7 +106,7 @@ modbus:
 modbus_server:
   - modbus_id: modbus_server
     address: 0x4
-    server_registers:
+    registers:
       - address: 0x0002
         value_type: U_DWORD_R
         read_lambda: |-
