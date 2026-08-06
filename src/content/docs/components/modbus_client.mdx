@@ -44,11 +44,20 @@ on_...:
   Modbus device range is `1`-`247`, and `0` is broadcast (no reply will ever arrive; see
   [Behavior](#behavior)).
 - **pdu** (**Required**, templatable, list of bytes): The PDU to send: function code followed by data. The device
-  address and CRC are added automatically - do **not** include them. Maximum 253 bytes (the Modbus PDU limit; longer
-  lists fail validation). As a lambda it must return a `modbus::helpers::PduBuffer` (a fixed-capacity stack vector,
-  not `std::vector`): `return {0x03, 0x00, 0x10, 0x00, 0x01};` works, and so does directly returning the result of a
-  `modbus::helpers::create_*_pdu()` builder - see [Building PDUs with Helpers](#building-pdus-with-helpers). An empty
-  PDU (empty list or empty lambda result) sends nothing and no handler fires.
+  address and CRC are added automatically - do **not** include them. Maximum 253 bytes (the Modbus PDU limit): an
+  empty or over-long YAML list fails config validation. As a lambda it must return a `modbus::helpers::PduBuffer` (a
+  fixed-capacity stack vector, not `std::vector`): `return {0x03, 0x00, 0x10, 0x00, 0x01};` works, and so does
+  directly returning the result of a `modbus::helpers::create_*_pdu()` builder - see
+  [Building PDUs with Helpers](#building-pdus-with-helpers). Unlike the YAML list, a lambda result isn't
+  length-checked: one over 253 bytes is silently truncated to the limit rather than rejected. An empty lambda result
+  (or a builder that fails - see below) also produces an empty PDU; the hub refuses to send it, and `on_not_sent`
+  fires.
+
+> [!NOTE]
+> None of the handlers below (`on_sent`, `on_response`, `on_error`, `on_no_response`, `on_not_sent`) may contain
+> deferring actions (`delay`, `wait_until`, `script.wait`, ...) - the request/response spans are only valid while the
+> handler runs. Copy any bytes you need into a global first, then defer from a separate script or automation.
+
 - **on_sent** (*Optional*, [Automation](/automations/)): Fires when the frame is written to the wire. Lambda
   variable: `request` (`std::span<const uint8_t>`, the PDU sent). This fires once per transmission, before any reply,
   and does not fire when the send ends in `on_not_sent` (nothing was transmitted). Exactly one of
@@ -70,16 +79,24 @@ on_...:
   - a `then:` automation with a nested `retry:` returning lambda - runs the actions **and** decides the retry:
 
     ```yaml
-    on_no_response:
-      then:
-        - logger.log: "no reply, retrying"
-      retry: !lambda "return id(tries)++ < 3;"
+    - globals.set: { id: tries, value: '0' }  # reset before each new send, not in a handler
+    - modbus_client.send:
+        address: 0x01
+        pdu: [0x03, 0x00, 0x10, 0x00, 0x01]
+        on_no_response:
+          then:
+            - logger.log: "no reply, retrying"
+          retry: !lambda "return id(tries)++ < 3;"
     ```
 
   The retry decision must be a lambda because an automation cannot return a value. The hub does not bound retries -
-  the lambda must (for example by capping on a counter), otherwise the frame is retried forever.
+  the lambda must (for example by capping on a counter), otherwise the frame is retried forever. `tries` above is a
+  global, and it must be reset before this send fires, not from a handler: `on_sent` fires on every retransmission
+  (including retries), so resetting there would zero the counter on each retry and defeat the cap; resetting only on
+  success (`on_response`) leaves a stale, already-capped counter for the next independent send if this one gives up.
 - **on_not_sent** (*Optional*, [Automation](/automations/)): Fires when the frame never reached the wire - for
-  example, cancelled by another device or automation clearing the queue for the same address. Distinct from a
+  example, an empty PDU, a duplicate write already pending (see [Duplicate suppression](#behavior)), a full send
+  queue, or cancelled by another device or automation clearing the queue for the same address. Distinct from a
   timeout: nothing was transmitted. Lambda variable: `request` (`std::span<const uint8_t>`, the PDU that was not
   sent).
 
@@ -95,10 +112,12 @@ directly (all return types convert to `PduBuffer`):
 - `create_write_registers_pdu(start_address, values)`: function code `0x10` multi-write; `values` is a span of
   `uint16_t`.
 - `create_write_coils_pdu(start_address, values)`: function code `0x0F` multi-write; `values` is a span of `bool`.
+  `std::vector<bool>` is bit-packed and won't convert to a span - pass a `std::array<bool, N>` or other contiguous
+  bool container instead.
 
 The builders validate their inputs per the Modbus specification (for example read counts and payload sizes) and
-return an *empty* PDU on invalid input, which the action silently skips - nothing is sent and no handler fires, so
-bad inputs fail safe but quiet.
+return an *empty* PDU on invalid input, logging the reason. An empty PDU is never sent - the action's `on_not_sent`
+fires instead, so bad inputs fail safe, and loud enough to show up in the logs.
 
 ```yaml
 - modbus_client.send:
@@ -122,7 +141,9 @@ The enum and the builders live in the `modbus` component's namespaces (`modbus::
   variables (such as the `x` of a containing `on_value`).
 - **Duplicate suppression**: an identical frame already queued by the same action is absorbed/dropped per the hub's
   deduplication rules.
-- **Broadcast** (address `0`): no device replies to a broadcast, so use it fire-and-forget (omit `on_response`).
+- **Broadcast** (address `0`): no device replies to a broadcast, so use it fire-and-forget (omit `on_response`). The
+  hub doesn't special-case address `0` - it still waits the full `send_wait_time` before considering the send done,
+  so a broadcast blocks the bus for that long even though nothing will ever reply.
 
 ## Examples
 
