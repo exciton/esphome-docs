@@ -61,7 +61,8 @@ on_...:
 - **on_sent** (*Optional*, [Automation](/automations/)): Fires when the frame is written to the wire. Lambda
   variable: `request` (`std::span<const uint8_t>`, the PDU sent). This fires once per transmission, before any reply,
   and does not fire when the send ends in `on_not_sent` (nothing was transmitted). Exactly one of
-  `on_response`/`on_error`/`on_no_response`/`on_not_sent` still follows.
+  `on_response`/`on_error`/`on_no_response`/`on_not_sent` follows each transmission attempt - a retry reopens this
+  cycle for its own attempt; see [Behavior](#behavior).
 - **on_response** (*Optional*, [Automation](/automations/)): Fires when a matching reply arrives. Lambda variables:
   `request` and `response`, both `std::span<const uint8_t>` (PDUs: function code plus data, no address/CRC). The
   spans are only valid inside the handler - copy bytes out if they must outlive it.
@@ -113,7 +114,8 @@ directly (all return types convert to `PduBuffer`):
   `uint16_t`.
 - `create_write_coils_pdu(start_address, values)`: function code `0x0F` multi-write; `values` is a span of `bool`.
   `std::vector<bool>` is bit-packed and won't convert to a span - pass a `std::array<bool, N>` or other contiguous
-  bool container instead.
+  bool container instead. An overload taking `PackedBits` (bits already packed as they go on the wire) is also
+  available for callers who need to write a large number of coils.
 
 The builders validate their inputs per the Modbus specification (for example read counts and payload sizes) and
 return an *empty* PDU on invalid input, logging the reason. An empty PDU is never sent - the action's `on_not_sent`
@@ -126,7 +128,9 @@ fires instead, so bad inputs fail safe, and loud enough to show up in the logs.
       return modbus::helpers::create_read_pdu(
           modbus::FunctionCode::READ_HOLDING_REGISTERS, 0x0010, 2);
     on_response:
-      - lambda: 'ESP_LOGI("app", "reg 0x10 = %u", (response[2] << 8) | response[3]);'
+      - lambda: |-
+          if (response.size() >= 4)
+            ESP_LOGI("app", "reg 0x10 = %u", (response[2] << 8) | response[3]);
 ```
 
 The enum and the builders live in the `modbus` component's namespaces (`modbus::FunctionCode`,
@@ -136,14 +140,18 @@ The enum and the builders live in the `modbus` component's namespaces (`modbus::
 
 - **Fire-and-continue**: the action queues the frame and the enclosing automation continues immediately; the reply
   handlers run later, when the outcome is known. Exactly one of `on_response`/`on_error`/`on_no_response`/
-  `on_not_sent` fires per send.
+  `on_not_sent` fires per transmission attempt; a retried frame runs the timeout branch again on each attempt.
 - The reply handlers run with the action's own context - they do **not** see the enclosing automation's local
   variables (such as the `x` of a containing `on_value`).
-- **Duplicate suppression**: an identical frame already queued by the same action is absorbed/dropped per the hub's
-  deduplication rules.
+- **Duplicate suppression**: sending an identical frame while one from the same action is already in flight is
+  safe. For a read, the second send is rescheduled for a second transmission at the back of the queue once the
+  first completes, and still gets its own terminal. For a write or custom command, only one may be in flight - a
+  second identical send is refused (`on_not_sent`).
 - **Broadcast** (address `0`): no device replies to a broadcast, so use it fire-and-forget (omit `on_response`). The
   hub doesn't special-case address `0` - it still waits the full `send_wait_time` before considering the send done,
-  so a broadcast blocks the bus for that long even though nothing will ever reply.
+  so a broadcast blocks the bus for that long even though nothing will ever reply. Since exactly one terminal always
+  fires, a broadcast always ends in `on_no_response` - a `retry:` lambda attached to it can never be satisfied, so
+  without its own counter cap the frame retransmits forever.
 
 ## Examples
 
@@ -160,9 +168,9 @@ button:
 ```
 
 A read with reply handling. A read response PDU is `[function code][byte count][data...]`, so the first register is
-in bytes 2-3 (big-endian). Decode manually as below, or with
-`modbus::helpers::get_data<uint16_t>(response.data(), 2)` (the helper takes a pointer plus a byte offset - note the
-offset is 2, not 1):
+in bytes 2-3 (big-endian). Decode manually as below, or extract the payload with
+`modbus::helpers::server_pdu_payload(response)` instead of hardcoding the offset yourself - it applies the
+read-vs-exception offset for you and returns an empty span for a too-short PDU:
 
 ```yaml
 button:
