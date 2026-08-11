@@ -17,7 +17,9 @@ See [Modbus](/components/modbus/#hardware-setup) for RS485 hardware setup instru
 
 - **modbus_id** (*Optional*, [ID](/guides/configuration-types#id)): Manually specify the ID of the `modbus` hub.
 
-- **address** (*Optional*, int): The Modbus device address (can be decimal or hexadecimal, `0`-`255`; the valid Modbus device range is `1`-`247`). `0` is the broadcast address, which no device ever answers, so it cannot be polled. Defaults to `0x01`.
+- **address** (*Optional*, int): The Modbus device address (can be decimal or hexadecimal, `0`-`255`; the valid
+  Modbus device range is `1`-`247`). `0` is the broadcast address, which no device ever answers, so it cannot be
+  polled. Defaults to `0x01`.
 
 - **update_interval** (*Optional*, [Time](/guides/configuration-types#time)): The interval that the sensors should be checked.
   Defaults to 60 seconds.
