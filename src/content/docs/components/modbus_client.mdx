@@ -62,6 +62,10 @@ on_...:
   length-checked: one over 253 bytes is silently truncated to the limit rather than rejected. An empty lambda result
   (or a builder that fails - see below) also produces an empty PDU; the hub refuses to send it, and `on_not_sent`
   fires.
+- **continuous** (*Optional*, templatable, boolean): Poll with this frame instead of sending it once - see
+  [Continuous polling](#continuous-polling). Only applies to a read: with a literal write PDU the combination is
+  rejected at config time, and any other write PDU has the option stripped at run time with a warning in the log.
+  Defaults to `false`.
 - **on_sent** (*Optional*, [Automation](/automations/)): Fires when the frame is written to the wire. Lambda
   variable: `request` (`std::span<const uint8_t>`, the PDU sent). This fires once per transmission, before any reply,
   and does not fire when the send ends in `on_not_sent` (nothing was transmitted). Exactly one of
@@ -164,6 +168,9 @@ handlers, never another action's.
   produces an empty PDU, and `on_not_sent` fires instead of the send. The same holds for the per-action `count` and
   `values` bounds below: a lambda returning a count or list length outside its documented range also produces an
   empty PDU and fires `on_not_sent`.
+- **continuous** (*Optional*, templatable, boolean): Poll with this frame instead of sending it once - see
+  [Continuous polling](#continuous-polling). Accepted by the four read actions only; the write actions and
+  `read_write_multiple_registers` do not take it. Defaults to `false`.
 - **on_sent** (*Optional*, [Automation](/automations/)): Fires when the frame is written to the wire. Lambda
   variable: `request` (`std::span<const uint8_t>`, the PDU sent).
 - **on_response** (*Optional*, [Automation](/automations/)): Fires on a standard-conforming reply. The lambda
@@ -430,6 +437,54 @@ button:
                   // `values` here is the read-back block, not the block written above
                   for (auto v : values)
                     ESP_LOGD("modbus", "read 0x%04X", v);
+```
+
+## Continuous Polling
+
+Setting `continuous: true` on a read action - or on `modbus_client.send` with a read PDU - turns a single request
+into a standing poll: the frame stays in the hub's queue and is sent again after each successful reply, and the
+action's reply handlers fire once per cycle. There is no interval option. The frame is re-queued as soon as its
+reply has been handled, so the poll runs as fast as the bus allows, paced by the hub's `send_wait_time` and
+`turnaround_time`.
+
+A poll ranks below every one-shot request, so it never delays an ordinary send: a read or write queued while the
+poll is running goes out first, and the poll resumes once that frame is done.
+
+The poll stops when any of these happens:
+
+- the device answers with a Modbus exception (`on_error`);
+- a request times out (`on_no_response`) and no retry is granted - a `retry:` lambda returning `true` keeps it
+  alive for another attempt;
+- the same action runs again with `continuous: false` - the poll serves that request with one more cycle, then
+  stops;
+- the queue is cleared for the device or the address, from a lambda:
+  `id(my_client).clear_tx_queue_for_address();`.
+
+Running a read action with `continuous: true` while an identical one-shot request from the same action is still in
+flight converts that request into a poll rather than queueing a second frame.
+
+`continuous` only applies to a read. The typed write actions and `read_write_multiple_registers` do not offer the
+option at all, and `modbus_client.send` guards it two ways:
+
+- If `pdu` is a literal list starting with a mutating function code (`0x05`, `0x06`, `0x0F`, `0x10`, `0x16`,
+  `0x17`) and `continuous` is `true`, the config is rejected with an error naming the function code. `0x17` counts
+  as mutating despite its read half, which is also why `read_write_multiple_registers` does not offer the option.
+- If either value is a lambda, that check cannot run at config time, so the hub strips the option when the frame is
+  queued and logs a warning. The send still happens - once, as a one-shot.
+
+```yaml
+button:
+  - platform: template
+    name: "Start polling"
+    on_press:
+      - modbus_client.read_holding_registers:
+          address: 0x01
+          start_address: 0x0010
+          count: 2
+          continuous: true
+          on_response:
+            then:
+              - lambda: 'ESP_LOGD("modbus", "reg0=%u", values[0]);'
 ```
 
 ## Behavior
