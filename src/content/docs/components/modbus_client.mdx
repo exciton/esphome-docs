@@ -460,6 +460,11 @@ The poll stops when any of these happens:
 - the queue is cleared for the device or the address, from a lambda:
   `id(my_client).clear_tx_queue_for_address();`.
 
+The `continuous: false` stop matches the **exact** frame the poll is running, so if the read used a templated field
+(such as `start_address`) the stopping request must evaluate to the same values, or it will not reach that poll. To
+stop a templated continuous poll regardless of its current arguments, clear the queue for the device instead:
+`id(my_client).clear_tx_queue_for_address();`.
+
 Running a read action with `continuous: true` while an identical one-shot request from the same action is still in
 flight converts that request into a poll rather than queueing a second frame.
 
