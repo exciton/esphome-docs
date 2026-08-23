@@ -62,10 +62,11 @@ on_...:
   length-checked: one over 253 bytes is silently truncated to the limit rather than rejected. An empty lambda result
   (or a builder that fails - see below) also produces an empty PDU; the hub refuses to send it, and `on_not_sent`
   fires.
-- **continuous** (*Optional*, templatable, boolean): Poll with this frame instead of sending it once - see
-  [Continuous polling](#continuous-polling). Only applies to a read: with a literal write PDU the combination is
-  rejected at config time, and any other write PDU has the option stripped at run time with a warning in the log.
-  Defaults to `false`.
+- **continuous** (*Optional*, templatable, boolean): Poll continuously instead of sending once - see
+  [Continuous polling](#continuous-polling). Cannot be used with known write function codes. They are rejected at
+  config time when the PDU is a literal list, or sent non-continuously at run time with a warning when it comes from
+  a lambda; every other code - read, custom, vendor-specific, or unknown - is allowed to poll continuously. Defaults
+  to `false`.
 - **on_sent** (*Optional*, [Automation](/automations/)): Fires when the frame is written to the wire. Lambda
   variable: `request` (`std::span<const uint8_t>`, the PDU sent). This fires once per transmission, before any reply,
   and does not fire when the send ends in `on_not_sent` (nothing was transmitted). Exactly one of
@@ -442,32 +443,34 @@ button:
 ## Continuous Polling
 
 Setting `continuous: true` on a read action - or on `modbus_client.send` with a read PDU - turns a single request
-into a standing poll: the frame stays in the hub's queue and is sent again after each successful reply, and the
+into a continuous poll: the frame stays in the hub's queue and is sent again after each successful reply, and the
 action's reply handlers fire once per cycle. There is no interval option. The frame is re-queued as soon as its
 reply has been handled, so the poll runs about as fast as the bus allows, paced by the hub's
 [`turnaround_time`](/components/modbus/#performance-vs-stability).
 
-A poll ranks below every one-shot request, so it never delays an ordinary send: a read or write queued while the
-poll is running goes out first, and the poll resumes once that frame is done.
+A continuous poll ranks below every one-shot request in the queue, so it never starves ordinary traffic: a read or
+write queued while the poll is running goes out as soon as the poll's current frame completes, and the poll resumes
+after it.
 
 The poll stops when any of these happens:
 
 - the device answers with a Modbus exception (`on_error`);
 - a request times out (`on_no_response`) and no retry is granted - a `retry:` lambda returning `true` keeps it
   alive for another attempt;
-- the same action runs again with `continuous: false` - the poll serves that request with one more cycle, then
-  stops;
-- the queue is cleared from a lambda - `id(my_client).clear_tx_queue_for_address();` drops every command queued to
-  that device's address (see the note below on stopping a templated poll), while
-  `id(my_client).clear_tx_queue_for_device();` drops only the commands that `my_client` itself queued.
+- the same action (with identical `address` and `PDU`) runs again with `continuous: false` - the poll serves that
+  request with one more cycle, then stops;
+- the queue is cleared from a [Lambda Hook Component](#lambda-hook-component) sharing the same `address` -
+  `id(ad_hoc_client).clear_tx_queue_for_address();` drops every command queued to that Modbus address, the poll
+  included (each dropped frame resolves through `on_not_sent`; see the note below on stopping a templated poll).
+
+A reply whose length doesn't match the request is delivered to `on_custom_response` and still counts as a
+successful cycle, so the poll keeps running; only the conditions above stop it.
 
 The `continuous: false` stop matches the **exact** frame the poll is running, so if the read used a templated field
-(such as `start_address`) the stopping request must evaluate to the same values, or it will not reach that poll. To
-stop a templated poll regardless of its arguments, clear the queue by **address** - from any `modbus_client` device
-that shares the poll's device address, `id(my_client).clear_tx_queue_for_address();` drops every queued command to
-that address, the poll included. `clear_tx_queue_for_device()` cannot do this: it clears only the commands a
-specific device queued, and an action's poll is queued by that action's own internal device, which no lambda has a
-handle to.
+(such as `start_address`) the stopping request must evaluate to the same values, or it will not cancel that poll. To
+stop a templated poll regardless of its arguments, clear the queue by **address** - from a `modbus_client` component
+that shares the poll's device address, `id(ad_hoc_client).clear_tx_queue_for_address();` drops every queued command
+to that address, the poll included.
 
 Running a read action with `continuous: true` while an identical one-shot request from the same action is still in
 flight converts that request into a poll rather than queueing a second frame.
@@ -511,8 +514,9 @@ button:
   recompute the configured expression if a handler needs it.
 - **Duplicate suppression**: sending an identical frame while one from the same action is already in flight is
   safe. For a read, the second send is rescheduled for a second transmission at the back of the queue once the
-  first completes, and still gets its own reply handler. For a write or custom command, only one may be in flight - a
-  second identical send is refused (`on_not_sent`).
+  first completes, and still gets its own reply handler (unless that second send sets `continuous: true`, which
+  converts the in-flight request into a poll instead - see [Continuous polling](#continuous-polling)). For a write
+  or custom command, only one may be in flight - a second identical send is refused (`on_not_sent`).
 - **Broadcast** (address `0`): a broadcast is never answered (Modbus 4.1), so the hub treats it as fire-and-forget -
   `on_sent` fires when the frame goes out and no terminal handler follows. It does **not** occupy the waiting slot
   or wait the full `send_wait_time`, so it never blocks the bus, and a `retry:` lambda is never invoked. Only writes,
@@ -619,7 +623,7 @@ on_...:
   - lambda: |-
       uint8_t pdu[] = {42};
       id(ad_hoc_client).queue_pdu(pdu);
-  # Clear the send queue for all commands targeting this client's address
+  # Clear the send queue for all commands targeting this client's address (even from other components or actions)
   - lambda: 'id(ad_hoc_client).clear_tx_queue_for_address();'
   # Clear the send queue for all commands sent from this client component
   - lambda: 'id(ad_hoc_client).clear_tx_queue_for_device();'
