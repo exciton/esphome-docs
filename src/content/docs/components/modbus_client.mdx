@@ -444,8 +444,8 @@ button:
 Setting `continuous: true` on a read action - or on `modbus_client.send` with a read PDU - turns a single request
 into a standing poll: the frame stays in the hub's queue and is sent again after each successful reply, and the
 action's reply handlers fire once per cycle. There is no interval option. The frame is re-queued as soon as its
-reply has been handled, so the poll runs as fast as the bus allows, paced by the hub's `send_wait_time` and
-`turnaround_time`.
+reply has been handled, so the poll runs about as fast as the bus allows, paced by the hub's
+[`turnaround_time`](/components/modbus/#performance-vs-stability).
 
 A poll ranks below every one-shot request, so it never delays an ordinary send: a read or write queued while the
 poll is running goes out first, and the poll resumes once that frame is done.
