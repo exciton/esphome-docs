@@ -266,7 +266,7 @@ Six new components join the tree:
   platform that draws into memory and writes BMP files, works anywhere the `host` platform runs, and pairs
   with a new `headless:` option on the SDL display for documentation captures and CI golden-image tests
   ([#17917](https://github.com/esphome/esphome/pull/17917))
-- **[noise](/components/noise/)** by [@bdraco](https://github.com/bdraco) - a shared internal Noise
+- **noise** by [@bdraco](https://github.com/bdraco) - a shared internal Noise
   primitives component that api and the new encrypted OTA both consume; no user configuration
   ([#18490](https://github.com/esphome/esphome/pull/18490))
 
@@ -278,14 +278,14 @@ Six new components join the tree:
   [@iago-veiga](https://github.com/iago-veiga) exposes a Tuya-MCU electric water heater as a single
   `water_heater` entity, collapsing the previous template-plus-lambda pattern into one block
   ([#17323](https://github.com/esphome/esphome/pull/17323))
-- **[lvgl list widget](/components/lvgl/widgets/list/)** by [@clydebarrow](https://github.com/clydebarrow)
+- **[lvgl list widget](/components/lvgl/widgets/#list)** by [@clydebarrow](https://github.com/clydebarrow)
   adds a scrollable container designed to be filled at runtime, with `add_text`, `add`, `remove` and `clear`
   actions plus `on_add`/`on_remove` triggers ([#18018](https://github.com/esphome/esphome/pull/18018))
-- **[lvgl table widget](/components/lvgl/widgets/table/)** also by
+- **[lvgl table widget](/components/lvgl/widgets/#table)** also by
   [@clydebarrow](https://github.com/clydebarrow) adds a lightweight grid of text elements
   ([#18422](https://github.com/esphome/esphome/pull/18422)) and support for LVGL 9.5's radial and conical
   gradients ([#18818](https://github.com/esphome/esphome/pull/18818))
-- **[online_image auto-detection](/components/online_image/)** by
+- **[online_image auto-detection](/components/image/online_image/)** by
   [@guillempages](https://github.com/guillempages) picks up the image format from the server's `Content-Type`
   header ([#16337](https://github.com/esphome/esphome/pull/16337)), plus QOI format support in `runtime_image`
   ([#16945](https://github.com/esphome/esphome/pull/16945)) and a decoder that stays allocated between images
@@ -313,14 +313,14 @@ Six new components join the tree:
 - **[emontx AP and F tags](/components/sensor/emontx/)** by [@FredM67](https://github.com/FredM67) adds
   apparent power and frequency sensor tags with correct defaults
   ([#18586](https://github.com/esphome/esphome/pull/18586))
-- **[climate_ir_lg advanced commands](/components/climate/climate_ir_lg/)** by
+- **[climate_ir_lg advanced commands](/components/climate/climate_ir/#climate_ir_lg)** by
   [@ireun](https://github.com/ireun) adds an `advanced_commands_support` flag that fixes heat/cool temperature
   setting, decodes JET mode, adds swing settings and rejects previously misdecoded frames
   ([#10875](https://github.com/esphome/esphome/pull/10875))
 - **[mitsubishi_cn105 Fahrenheit](/components/climate/mitsubishi_cn105/)** by
   [@crnjan](https://github.com/crnjan) implements the non-linear Fahrenheit mapping the Mitsubishi A/C
   hardware actually uses ([#15488](https://github.com/esphome/esphome/pull/15488))
-- **[hoermann_hcp buttons](/components/hoermann_hcp/)** by [@zweckj](https://github.com/zweckj) adds venting
+- **[hoermann_hcp buttons](/components/cover/hoermann_hcp/)** by [@zweckj](https://github.com/zweckj) adds venting
   and half-open buttons ([#18544](https://github.com/esphome/esphome/pull/18544))
 - **[audio_http persistent buffer](/components/media_player/)** by
   [@n-IA-hane](https://github.com/n-IA-hane) keeps the HTTP decoder ring buffer allocated between playback
