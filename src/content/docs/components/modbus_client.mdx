@@ -52,7 +52,8 @@ on_...:
 - **modbus_id** (*Optional*, [ID](/guides/configuration-types#id)): The Modbus hub to send on. Automatically assigned
   when a single hub is configured.
 - **address** (**Required**, templatable, int): The device address the frame is sent to. Accepts `0`-`255`; the valid
-  Modbus device range is `1`-`247`, and `0` is broadcast (no reply will ever arrive; see [Behavior](#behavior)).
+  Modbus device range is `1`-`247`, and `0` is broadcast (never answered unless one of the broadcast options below
+  is set; see [Behavior](#behavior)).
 - **pdu** (**Required**, templatable, list of bytes): The PDU to send: function code followed by data. The device
   address and CRC are added automatically - do **not** include them. Maximum 253 bytes (the Modbus PDU limit): an
   empty or over-long YAML list fails config validation. As a lambda it must return a `modbus::helpers::PduBuffer` (a
@@ -67,6 +68,13 @@ on_...:
   config time when the PDU is a literal list, or sent non-continuously at run time with a warning when it comes from
   a lambda; every other code - read, custom, vendor-specific, or unknown - is allowed to poll continuously. Defaults
   to `false`.
+- **allow_broadcast_read** (*Optional*, templatable, boolean): Let a read be sent to address `0` and wait for its
+  reply, for a device that answers the broadcast address - see [Broadcast](#behavior) under Behavior. Ignored (with
+  a warning) for a PDU whose function code may be broadcast, and rejected at config time on a literal write PDU.
+  Defaults to `false`.
+- **expect_broadcast_write_response** (*Optional*, templatable, boolean): Wait for the reply to a write sent to
+  address `0` instead of treating it as fire-and-forget - see [Broadcast](#behavior) under Behavior. Ignored (with a
+  warning) for a read PDU, and rejected at config time on a literal read PDU. Defaults to `false`.
 - **on_sent** (*Optional*, [Automation](/automations/)): Fires when the frame is written to the wire. Lambda
   variable: `request` (`std::span<const uint8_t>`, the PDU sent). This fires once per transmission, before any reply,
   and does not fire when the send ends in `on_not_sent` (nothing was transmitted). Exactly one of
@@ -158,8 +166,8 @@ handlers, never another action's.
 ### Common Configuration Variables
 
 - **address** (**Required**, templatable, int): The Modbus device address the frame is sent to. Accepts `0`-`255`;
-  the valid Modbus device range is `1`-`247`, and `0` is broadcast (no reply will ever arrive; see
-  [Behavior](#behavior)).
+  the valid Modbus device range is `1`-`247`, and `0` is broadcast (never answered unless `allow_broadcast_read` or
+  `expect_broadcast_write_response` is set; see [Behavior](#behavior)).
 - **modbus_id** (*Optional*, [ID](/guides/configuration-types#id)): The Modbus hub to send on. Automatically assigned
   when a single hub is configured.
 - **start_address** (**Required**, templatable, int): The starting register or coil address. Not used by
@@ -172,6 +180,12 @@ handlers, never another action's.
 - **continuous** (*Optional*, templatable, boolean): Poll with this frame instead of sending it once - see
   [Continuous polling](#continuous-polling). Accepted by the four read actions only; the write actions and
   `read_write_multiple_registers` do not take it. Defaults to `false`.
+- **allow_broadcast_read** (*Optional*, templatable, boolean): Let this read be sent to address `0` and wait for its
+  reply, for a device that answers the broadcast address - see [Broadcast](#behavior) under Behavior. Accepted by
+  the four read actions only. Defaults to `false`.
+- **expect_broadcast_write_response** (*Optional*, templatable, boolean): Wait for the reply to this write when it
+  is sent to address `0`, instead of treating it as fire-and-forget - see [Broadcast](#behavior) under Behavior.
+  Accepted by the four write actions only. Defaults to `false`.
 - **on_sent** (*Optional*, [Automation](/automations/)): Fires when the frame is written to the wire. Lambda
   variable: `request` (`std::span<const uint8_t>`, the PDU sent).
 - **on_response** (*Optional*, [Automation](/automations/)): Fires on a standard-conforming reply. The lambda
@@ -505,8 +519,8 @@ button:
 
 - **Fire-and-continue**: the action queues the frame and the enclosing automation continues immediately; the reply
   handlers run later, when the outcome is known. Exactly one of `on_response`/`on_error`/`on_no_response`/
-  `on_not_sent` fires per transmission attempt (except a broadcast to address `0`, which is never answered and gets
-  only `on_sent`); a retried frame runs the timeout branch again on each attempt. The
+  `on_not_sent` fires per transmission attempt (except a fire-and-forget broadcast to address `0`, which gets only
+  `on_sent`); a retried frame runs the timeout branch again on each attempt. The
   typed read/write actions also have `on_custom_response`, which fires in place of `on_response` for a
   non-conforming reply.
 - The reply handlers run with the action's own context - they do **not** see the enclosing automation's local
@@ -522,6 +536,33 @@ button:
   or wait the full `send_wait_time`, so it never blocks the bus, and a `retry:` lambda is never invoked. Only writes,
   read/write-multiple (`0x17`), and custom/vendor codes may be broadcast; a **read** to address `0` can never
   deliver a result and is refused up front, resolving immediately via `on_not_sent`.
+
+  Some devices do answer address `0` - a lone device whose unit id is unknown, or one that treats `0` as its own
+  address. Two options send to address `0` as if it were a unicast address, waiting for the reply with the normal
+  `send_wait_time`, retry and reply handlers: `allow_broadcast_read: true` lifts the refusal of a read, and
+  `expect_broadcast_write_response: true` makes a write wait for its echo instead of retiring at transmission. The
+  reply is accepted whether the device answers as address `0` or with its own unit id (the latter is logged at
+  debug level); the function code must still match. Each option is stripped, with a warning, when set on a
+  function code it does not apply to, and is inert for a unicast address.
+
+  ```yaml
+  on_...:
+    - modbus_client.read_holding_registers:
+        address: 0
+        allow_broadcast_read: true
+        start_address: 0x0010
+        on_response:
+          then:
+            - lambda: 'ESP_LOGI("modbus", "value=%u", values[0]);'
+    - modbus_client.write_single_register:
+        address: 0
+        expect_broadcast_write_response: true
+        start_address: 0x0011
+        value: 1
+        on_response:
+          then:
+            - logger.log: "write acked"
+  ```
 
 > [!NOTE]
 > None of the reply handlers (`on_sent`, `on_response`, `on_custom_response`, `on_error`, `on_no_response`,
