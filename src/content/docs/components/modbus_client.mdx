@@ -69,12 +69,13 @@ on_...:
   a lambda; every other code - read, custom, vendor-specific, or unknown - is allowed to poll continuously. Defaults
   to `false`.
 - **allow_broadcast_read** (*Optional*, templatable, boolean): Let a read be sent to address `0` and wait for its
-  reply, for a device that answers the broadcast address - see [Broadcast](#behavior) under Behavior. Ignored (with
-  a warning) for a PDU whose function code may be broadcast, and rejected at config time on a literal write PDU.
-  Defaults to `false`.
+  reply, for a device that answers the broadcast address - see [Broadcast](#behavior) under Behavior. Applies to
+  the function codes that cannot be broadcast (the reads, including `0x17`): a literal `pdu` with any other code
+  is rejected at config time, and a lambda-built one is sent without it. Defaults to `false`.
 - **expect_broadcast_write_response** (*Optional*, templatable, boolean): Wait for the reply to a write sent to
-  address `0` instead of treating it as fire-and-forget - see [Broadcast](#behavior) under Behavior. Ignored (with a
-  warning) for a read PDU, and rejected at config time on a literal read PDU. Defaults to `false`.
+  address `0` instead of treating it as fire-and-forget - see [Broadcast](#behavior) under Behavior. Applies to the
+  function codes that can be broadcast (writes and custom codes): a literal `pdu` with a read code is rejected at
+  config time, and a lambda-built one is sent without it. Defaults to `false`.
 - **on_sent** (*Optional*, [Automation](/automations/)): Fires when the frame is written to the wire. Lambda
   variable: `request` (`std::span<const uint8_t>`, the PDU sent). This fires once per transmission, before any reply,
   and does not fire when the send ends in `on_not_sent` (nothing was transmitted). Exactly one of
@@ -182,7 +183,7 @@ handlers, never another action's.
   `read_write_multiple_registers` do not take it. Defaults to `false`.
 - **allow_broadcast_read** (*Optional*, templatable, boolean): Let this read be sent to address `0` and wait for its
   reply, for a device that answers the broadcast address - see [Broadcast](#behavior) under Behavior. Accepted by
-  the four read actions only. Defaults to `false`.
+  the four read actions and `read_write_multiple_registers`. Defaults to `false`.
 - **expect_broadcast_write_response** (*Optional*, templatable, boolean): Wait for the reply to this write when it
   is sent to address `0`, instead of treating it as fire-and-forget - see [Broadcast](#behavior) under Behavior.
   Accepted by the four write actions only. Defaults to `false`.
@@ -537,13 +538,13 @@ button:
   read/write-multiple (`0x17`), and custom/vendor codes may be broadcast; a **read** to address `0` can never
   deliver a result and is refused up front, resolving immediately via `on_not_sent`.
 
-  Some devices don't follow the Modbus spec and reply to the broadcast address. Two options send to address `0` as
-  if it were a unicast address, waiting for the reply with the normal
-  `send_wait_time`, retry and reply handlers: `allow_broadcast_read: true` lifts the refusal of a read, and
-  `expect_broadcast_write_response: true` makes a write wait for its echo instead of retiring at transmission. The
-  reply is accepted whether the device answers as address `0` or with its own unit id (the latter is logged at
-  debug level); the function code must still match. Each option is stripped, with a warning, when set on a
-  function code it does not apply to, and is inert for a unicast address.
+  Some devices don't follow the Modbus spec and reply to the broadcast address. Two options send to address `0`
+  as if it were a unicast address, waiting for the reply with the normal `send_wait_time`, retry and reply
+  handlers: `allow_broadcast_read: true` lifts the refusal of a read, and `expect_broadcast_write_response: true`
+  makes a write wait for its echo instead of retiring at transmission. The reply is matched like any other, so
+  the device must answer as address `0` with the same function code. Each option is silently ignored when set on
+  a function code it does not apply to (a literal `pdu` is checked at validation instead), and is inert for a
+  unicast address.
 
   ```yaml
   on_...:
