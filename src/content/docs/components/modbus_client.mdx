@@ -537,8 +537,8 @@ button:
   read/write-multiple (`0x17`), and custom/vendor codes may be broadcast; a **read** to address `0` can never
   deliver a result and is refused up front, resolving immediately via `on_not_sent`.
 
-  Some devices do answer address `0` - a lone device whose unit id is unknown, or one that treats `0` as its own
-  address. Two options send to address `0` as if it were a unicast address, waiting for the reply with the normal
+  Some devices don't follow the Modbus spec and reply to the broadcast address. Two options send to address `0` as
+  if it were a unicast address, waiting for the reply with the normal
   `send_wait_time`, retry and reply handlers: `allow_broadcast_read: true` lifts the refusal of a read, and
   `expect_broadcast_write_response: true` makes a write wait for its echo instead of retiring at transmission. The
   reply is accepted whether the device answers as address `0` or with its own unit id (the latter is logged at

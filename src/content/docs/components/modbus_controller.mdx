@@ -40,8 +40,8 @@ See [Modbus](/components/modbus/#hardware-setup) for RS485 hardware setup instru
   to `false`. See [Continuous polling](#modbus_controller-continuous-polling) below.
 
 - **allow_broadcast_read** (*Optional*, boolean): Allow `address: 0` and poll it as if it were a unicast address, for
-  a device that answers the broadcast address - a lone device whose unit id is unknown, or one that treats `0` as
-  its own. Every read this controller sends waits for its reply with the normal timeout and retry ladder, and the
+  a device that doesn't follow the Modbus spec and replies to the broadcast address. Every read this controller
+  sends waits for its reply with the normal timeout and retry ladder, and the
   reply is accepted whether the device answers as address `0` or with its own unit id. Writes from this controller's
   entities stay fire-and-forget broadcasts unless the entity sets `expect_broadcast_write_response`. Defaults to
   `false`.
