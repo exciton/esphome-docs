@@ -543,8 +543,9 @@ button:
   handlers: `allow_broadcast_read: true` lifts the refusal of a read, and `expect_broadcast_write_response: true`
   makes a write wait for its echo instead of retiring at transmission. The reply is matched like any other, so
   the device must answer as address `0` with the same function code. Each option is silently ignored when set on
-  a function code it does not apply to (a literal `pdu` is checked at validation instead), and is inert for a
-  unicast address.
+  a function code it does not apply to (a literal `pdu` is checked at validation instead). Both are rejected at
+  validation on a literal `address` other than `0`; a templated address is checked at run time, where the hub
+  ignores them for a unicast frame.
 
   ```yaml
   on_...:
