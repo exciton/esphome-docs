@@ -177,11 +177,10 @@ display:
 
 ### Partial updates across deep sleep
 
-A device that uses [deep sleep](/components/deep_sleep) between updates normally does a full refresh on every wake: the
-driver starts with no memory of the update cycle, and the first update resets the display, which loses the image a
-partial update compares against. With `full_refresh_after_deep_sleep: false` the driver instead leaves the display
-holding its image when the device goes to sleep, keeps the reset and enable pins at their levels through the sleep, and
-remembers where it was in the update cycle, so the first update after the wake is a partial one.
+A device that uses [deep sleep](/components/deep_sleep) between updates normally does a full refresh on every wake,
+because the driver starts with no memory of the update cycle. With `full_refresh_after_deep_sleep: false` the driver
+remembers where it was in the cycle, keeps the display's enable pin at its level through the sleep so the display stays
+powered, and the first update after the wake is a partial one.
 
 This is only correct if the display keeps its power while the device sleeps; on a board that switches the display's
 supply off during sleep, leave the default.
