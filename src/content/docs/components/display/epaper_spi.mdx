@@ -120,18 +120,18 @@ but can be overridden if needed.
 - **full_update_every** (*Optional*, int): On screens that support partial updates, this sets the number of updates
   before a full update is forced. Defaults to `1` which will make every update a full update. A full update can also be
   requested at any time with the [`epaper_spi.full_update_next`](#epaper_spi-full_update_next-action) action.
-- **full_refresh_after_deep_sleep** (*Optional*, boolean): Whether the first update after the device wakes from
-  [deep sleep](/components/deep_sleep) is a full one. Defaults to `true`. Set to `false` on a board that keeps the
-  display powered while the device sleeps: the display is then left holding its image, and the partial update cycle
-  continues across wakes instead of every wake refreshing the whole panel. Only for models that support it
-  (currently `SSD1681` panels), and needs `full_update_every` above `1`. See
-  [Partial updates across deep sleep](#partial-updates-across-deep-sleep).
-- **retain_image_in_sleep** (*Optional*, int): ESP32 only. Keeps a copy of the image on the display in the ESP32's RTC
-  memory while the device is in [deep sleep](/components/deep_sleep), so the partial update cycle continues across
-  wakes even if the display loses its memory, or its power, meanwhile. The value is the size of RTC memory to reserve,
-  such as `6kB`; the image is stored as it is when it fits and compressed otherwise. At most `8kB`, one display per
-  device, and needs `full_update_every` above `1`. Setting this makes `full_refresh_after_deep_sleep` default to
-  `false`. See [Partial updates across deep sleep](#partial-updates-across-deep-sleep).
+- **partial_update_after_deep_sleep** (*Optional*): Continue the partial update cycle when the device wakes from
+  [deep sleep](/components/deep_sleep), instead of doing a full update on every wake. Only for models that support it
+  (currently `SSD1681` panels), and needs `full_update_every` above `1`. One of:
+
+  - `panel`: the board keeps the display powered while the device sleeps, and the display keeps its image.
+    ESP8266 and ESP32.
+  - **rtc_memory** (**Required**, int): keep a copy of the image in the ESP32's RTC memory, so the display may lose
+    its image, or its power, while the device sleeps. The value is the size of RTC memory to reserve, such as `6kB`;
+    the image is stored as it is when it fits and compressed otherwise. ESP32 only, at most `8kB`, one display per
+    device.
+
+  See [Partial updates across deep sleep](#partial-updates-across-deep-sleep).
 - **monochrome_partial_updates** (*Optional*, boolean): Only for four-level grayscale models
   (`Seeed-reTerminal-Sticky-gray4`). Allows `full_update_every` greater than `1`, with the partial updates in between
   in black and white. Defaults to `false`: every update is a full four-level update. See
@@ -183,16 +183,16 @@ display:
 
 ### Partial updates across deep sleep
 
-A device that uses [deep sleep](/components/deep_sleep) between updates normally does a full refresh on every wake,
-because the driver starts with no memory of the update cycle. With `full_refresh_after_deep_sleep: false` the driver
+A device that uses [deep sleep](/components/deep_sleep) between updates normally does a full update on every wake,
+because the driver starts with no memory of the update cycle. With `partial_update_after_deep_sleep: panel` the driver
 remembers where it was in the cycle, keeps the display's enable pin at its level through the sleep so the display stays
 powered, and the first update after the wake is a partial one.
 
-This is only correct if the display keeps its power while the device sleeps. On a board that switches the display's
-supply off during sleep, or with a display that cannot keep its memory through its own sleep, use
-`retain_image_in_sleep` instead: the image on the display is kept in the ESP32's RTC memory, which survives deep sleep,
-and the first update after the wake writes it back to the display before refreshing partially. A 200x200 panel's image
-is 5000 bytes and fits as it is; larger images are compressed, and if one does not fit the next update is a full one.
+`panel` is only correct if the display keeps its power while the device sleeps. On a board that switches the
+display's supply off during sleep, use `rtc_memory` instead: the image on the display is kept in the ESP32's RTC memory,
+which survives deep sleep, and the first update after the wake writes it back to the display before updating partially.
+A 200x200 panel's image is 5000 bytes and fits as it is; larger images are compressed, and if one does not fit the next
+update is a full one.
 
 ```yaml
 display:
@@ -200,7 +200,8 @@ display:
     model: Waveshare-1.54in-v2
     # ...
     full_update_every: 20
-    retain_image_in_sleep: 6kB
+    partial_update_after_deep_sleep:
+      rtc_memory: 6kB
 ```
 
 ```yaml
@@ -217,7 +218,7 @@ display:
     reset_pin: GPIOXX
     busy_pin: GPIOXX
     full_update_every: 20
-    full_refresh_after_deep_sleep: false
+    partial_update_after_deep_sleep: panel
     update_interval: never
     lambda: |-
       it.printf(0, 0, id(my_font), Color::BLACK, "%.1f C", id(temperature).state);
